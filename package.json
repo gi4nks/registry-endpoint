@@ -1,7 +1,7 @@
 {
-  "name": "jspm-registry",
-  "version": "0.4.0",
-  "description": "jspm registry and override endpoint",
+  "name": "jspm-artifactory-registry",
+  "version": "0.0.1",
+  "description": "jspm artifactory registry and override endpoint",
   "main": "registry.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -12,15 +12,16 @@
     "graceful-fs": "^3.0.6",
     "rimraf": "^2.3.2",
     "rsvp": "^3.0.18",
-    "semver": "^4.3.3"
+    "semver": "^4.3.3",
+	"tar": "~1.0.3"
   },
   "devDependencies": {},
   "repository": {
     "type": "git",
-    "url": "https://github.com/jspm/registry-endpoint"
+    "url": "https://github.com/jtamary/registry-endpoint"
   },
   "bugs": {
-    "url": "https://github.com/jspm/registry-endpoint/issues"
+    "url": "https://github.com/jtamary/registry-endpoint/issues"
   },
-  "homepage": "https://github.com/jspm/registry-endpoint"
+  "homepage": "https://github.com/jtamary/registry-endpoint"
 }

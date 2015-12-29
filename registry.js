@@ -5,6 +5,10 @@ var exec = require('child_process').exec;
 var semver = require('semver');
 var path = require('path');
 var rimraf = require('rimraf');
+var request = require('request');
+
+var tar = require('tar');
+var zlib = require('zlib');
 
 function extend(a, b) {
   for (var p in b)
@@ -31,13 +35,8 @@ var registry = module.exports = function registry(options, ui) {
 }
 
 registry.configure = function(config, ui) {
-  return ui.input('Enter the registry repo path', config.repo || defaultRepo)
+  return ui.input('Enter the Artifactory path', config.repo || defaultRepo)
   .then(function(repo) {
-    if (repo.substr(0, 2) == '~/')
-      repo = path.resolve(process.env.HOME || process.env.USERPROFILE || process.env.HOMEPATH, repo.substr(2));
-    else if (repo.substr(0, 1) == '.')
-      repo = path.resolve(repo);
-
     config.repo = repo;
     return config;
   });
@@ -146,13 +145,32 @@ registry.prototype.createRegistry = function() {
   ui.log('info', 'Creating registry cache...');
 
   var self = this;
-
+  //var registryPath = this.registryPath;
   return asp(rimraf)(path.resolve(this.registryPath))
   .then(function() {
     return asp(fs.mkdir)(path.resolve(self.registryPath));
   })
   .then(function() {
-    return asp(exec)('git clone --depth=1 ' + self.repo + ' .', self.execOptions);
+      return new Promise(function(resolve, reject) {
+        request({
+          uri:self.repo,
+          headers: { 'accept': 'application/octet-stream' }
+        })
+          .on('response', function(pkgRes) {
+            if (pkgRes.statusCode != 200)
+              return reject('Bad response code ' + pkgRes.statusCode);
+            pkgRes.pause();
+            var gzip = zlib.createGunzip();
+            pkgRes
+              .pipe(gzip)
+              .pipe(tar.Extract({ path: self.registryPath, strip: 1 }))
+              .on('error', reject)
+              .on('end', resolve);
+            pkgRes.resume();
+            console.log(self.registryPath);
+          })
+          .on('error', reject);
+      });
   })
   .catch(function(err) {
     ui.log('err', 'Error creating registry file\n' + (err.stack || err));
@@ -173,26 +191,10 @@ registry.prototype.updateRegistry = function() {
   .then(function(output) {
     output = output.toString();
 
-    var curRepoMatch = output.match(/Fetch URL: ([^\n]+)/m);
+    //var curRepoMatch = output.match(/Fetch URL: ([^\n]+)/m);
 
-    if (!curRepoMatch || curRepoMatch[1] != self.repo)
+    //if (!curRepoMatch || curRepoMatch[1] != self.repo)
       return self.createRegistry();
-
-    // if the registry does exist, update it
-    ui.log('info', 'Updating registry cache...');
-    return asp(exec)('git fetch --all && git reset --hard origin/master', execOptions)
-    .then(function(stdout, stderr) {
-      if (stderr)
-        throw stderr;
-    })
-    .catch(function(err) {
-      if (typeof err == 'string') {
-        err = new Error(err);
-        err.hideStack = true;
-      }
-      err.retriable = true;
-      throw err;
-    });
   }, function(err) {
     err = err.toString();
 
